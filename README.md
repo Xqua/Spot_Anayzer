@@ -15,3 +15,6 @@ The file SpotAnalyser.py contains in the __init__ function lots of parameter tha
 		self.Time_Error = 6 / self.timeinterval #Allowed variance in second for a peak to be called true when found in vertical axis and checked VS time  
 		self.diameter = 850 					#Diameter of the bacteria in nm
 		self.pix_size = 65 						#Size in nm of the pixel (here CMOS camera with 100x objective = 65nm)
+		self.y_threshold = 0.4 					#Minimum signal intensity to be called a peak (the signal is normalized and goes from 0-1 should be set to mean(noise) + 2std(noise) or learned )
+		self.dy_threshold = 0.001				#Thershold value to detect the peaks > How close to zero does the first derivative need to be to be considered a peak
+

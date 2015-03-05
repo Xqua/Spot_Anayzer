@@ -21,6 +21,7 @@ class Spot_Analysis:
 		self.filename = filename
 		self.img = pims.TiffStack(filename)
 		self.time_pool, self.binned = self.Pool_Time(self.img)
+		self.max_signal = self.time_pool.max()
 		#################################
 
 		#################################
@@ -35,6 +36,8 @@ class Spot_Analysis:
 		self.Time_Error = 6 / self.timeinterval #Allowed variance in second for a peak to be called true when found in vertical axis and checked VS time  
 		self.diameter = 850 					#Diameter of the bacteria in nm
 		self.pix_size = 65 						#Size in nm of the pixel (here CMOS camera with 100x objective = 65nm)
+		self.y_threshold = 0.4 					#Minimum signal intensity to be called a peak (the signal is normalized and goes from 0-1 should be set to mean(noise) + 2std(noise) or learned )
+		self.dy_threshold = 0.001				#Thershold value to detect the peaks > How close to zero does the first derivative need to be to be considered a peak
 		#################################
 
 		#################################
@@ -110,7 +113,9 @@ class Spot_Analysis:
 		if Gaussian:
 			Y = ndimage.filters.gaussian_filter1d(Y, sigma=Gaussian_sigma, mode='reflect')
 		if Log:
-			Y = np.log(Y)
+			Y = np.log(Y)/np.log(self.max_signal)
+		else:
+			Y = Y/self.max_signal
 		if affine_correct:
 			tY = []
 			a,b = Fit_Affine(Y) 
@@ -124,10 +129,13 @@ class Spot_Analysis:
 			Y = Y-Y.min()
 		return Y
 
-	def Peak_detect(self, Y, line=0, y_threshold=0.4, dy_threshold = 0.001):
+	def Peak_detect(self, Y, line=0, y_threshold=None, dy_threshold = None):
 		#Process Signal
 		Y = self.Signal_Process(Y)
-
+		if not y_threshold:
+			y_threshold = self.y_threshold
+		if not dy_threshold:
+			dy_threshold = self.dy_threshold
 		#Create X vectors
 		X = np.linspace(0,len(Y)*self.timeinterval,len(Y))
 		xs = np.arange(0, len(Y)*self.timeinterval, self.deltax)
