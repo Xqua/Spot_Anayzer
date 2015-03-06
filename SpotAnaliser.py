@@ -36,7 +36,7 @@ class Spot_Analysis:
 		self.Time_Error = 6 / self.timeinterval #Allowed variance in second for a peak to be called true when found in vertical axis and checked VS time  
 		self.diameter = 850 					#Diameter of the bacteria in nm
 		self.pix_size = 65 						#Size in nm of the pixel (here CMOS camera with 100x objective = 65nm)
-		self.y_threshold = 0.4 					#Minimum signal intensity to be called a peak (the signal is normalized and goes from 0-1 should be set to mean(noise) + 2std(noise) or learned )
+		self.y_threshold = 0.05				#Minimum signal intensity to be called a peak (the signal is normalized and goes from 0-1 should be set to mean(noise) + 2std(noise) or learned )
 		self.dy_threshold = 0.001				#Thershold value to detect the peaks > How close to zero does the first derivative need to be to be considered a peak
 		#################################
 
@@ -225,6 +225,8 @@ class Spot_Analysis:
 		time_hit = np.unique(time_hit)
 		time_hit = [np.where(X == i)[0][0] for i in time_hit]
 		self.speed = np.mean(self.all_v)
+		if np.isnan(self.speed):
+			self.speed = 0
 		print "mean Speed", self.speed
 		for time in time_hit:
 			# print "time is :",time
@@ -261,32 +263,34 @@ class Spot_Analysis:
 						pass
 				if test:
 					self.Real_hit.append((line,t))
-
-		Tn = {}
-		lines, times = np.array(self.Real_hit)[:,0],np.array(self.Real_hit)[:,1]
-		for i in range(len(times)):
-			if Tn.has_key(times[i]):
-				Tn[times[i]].append(lines[i])
-			else:
-				Tn[times[i]] = [lines[i]]
-		T = np.unique(times)
-		res = np.zeros(T.max())
-
-		for t in range(len(T)):
-			c = 0
-			for l in Tn[T[t]]:
-				if t < len(T)-2:
-					if l not in Tn[T[t+2]] and l not in Tn[T[t+1]]:
-						c+=1
+		if self.Real_hit:
+			Tn = {}
+			lines, times = np.array(self.Real_hit)[:,0],np.array(self.Real_hit)[:,1]
+			for i in range(len(times)):
+				if Tn.has_key(times[i]):
+					Tn[times[i]].append(lines[i])
 				else:
-					c+=1
-			res[t] = c
+					Tn[times[i]] = [lines[i]]
+			T = np.unique(times)
+			res = np.zeros(T.max())
 
-		self.revolution_window = int((self.diameter*np.pi)/self.speed)
-		windowed = []
-		for i in range(len(res)-self.revolution_window):
-			windowed.append(np.sum(res[i:i+self.revolution_window]))
-		self.meanMREB, self.stdMREB = np.mean(windowed), np.std(windowed)
+			for t in range(len(T)):
+				c = 0
+				for l in Tn[T[t]]:
+					if t < len(T)-2:
+						if l not in Tn[T[t+2]] and l not in Tn[T[t+1]]:
+							c+=1
+					else:
+						c+=1
+				res[t] = c
+
+			self.revolution_window = int((self.diameter*np.pi)/self.speed)
+			windowed = []
+			for i in range(len(res)-self.revolution_window):
+				windowed.append(np.sum(res[i:i+self.revolution_window]))
+			self.meanMREB, self.stdMREB = np.mean(windowed), np.std(windowed)
+		else:
+			self.meanMREB, self.stdMREB = 0, 0
 		print "Number of Events per revolution window:"
 		print "Mean:",self.meanMREB, "Std:",self.stdMREB
 		

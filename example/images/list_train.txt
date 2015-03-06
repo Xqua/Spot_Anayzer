@@ -1,0 +1,5 @@
+bMD369_NOiptg_1_R3D_nodrift-10.tif,20
+bMD369_NOiptg_1_R3D_nodrift-11.tif,20
+bMD369_NOiptg_1_R3D_nodrift-12.tif,20
+bMD369_NOiptg_1_R3D_nodrift-13.tif,20
+bMD369_NOiptg_1_R3D_nodrift-14.tif,20
