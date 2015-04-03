@@ -14,7 +14,7 @@ if len(sys.argv) < 3:
 path = os.path.join(os.getcwd(), sys.argv[1])
 filelist = sys.argv[2]
 
-# Trying just a commit
+
 os.chdir(path)
 
 lines = open(filelist).readlines()
