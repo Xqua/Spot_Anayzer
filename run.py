@@ -29,7 +29,8 @@ bacterial_files = [i.strip() for i in lines if (i and 'tif' in i.lower())]
 MreB_mu = []
 MreB_std = []
 lenght = []
-
+speed = []
+gauss_width = []
 
 for filename in bacterial_files:
     A = SpotAnaliser.Spot_Analysis(filename)
