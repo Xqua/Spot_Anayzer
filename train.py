@@ -10,6 +10,7 @@ if len(sys.argv) < 3:
     to run the example:
     python train.py example/images list_train.txt
     the file list_train.txt needs to have for each line: image_name,number of filament"""
+    sys.exit()
 
 path = os.path.join(os.getcwd(), sys.argv[1])
 filelist = sys.argv[2]
