@@ -30,15 +30,17 @@ MreB_mu = []
 MreB_std = []
 lenght = []
 speed = []
+gauss_width = []
 
 for filename in bacterial_files:
 	A = SpotAnaliser.Spot_Analysis(filename)
-	A.Main()
+	A.Main(makeplot=False)
 	if not np.isnan(A.meanMREB):
 		MreB_mu.append(A.meanMREB)
 		MreB_std.append(A.stdMREB)
 		speed.append(A.speed)
 		lenght.append(A.bact_lenght_nm)
+		gauss_width.append(A.gauss_sigma)
 
 fig = plt.figure(figsize=(15,15))
 plt.errorbar(lenght, MreB_mu, yerr=MreB_std, fmt='o', alpha=0.7, color='g')
