@@ -21,6 +21,7 @@ filelist = sys.argv[2]
 os.chdir(path)
 
 lines = open(filelist).readlines()
+# I am testing something here
 bacterial_files = [i.strip() for i in lines if (i and 'tif' in i.lower())]
 
 # filename = bacterial_files[25]
