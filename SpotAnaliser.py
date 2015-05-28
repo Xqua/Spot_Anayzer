@@ -5,6 +5,10 @@ import numpy as np
 from scipy import ndimage
 from scipy.interpolate import UnivariateSpline
 from scipy.stats import linregress
+import scipy.io as spio
+import scipy.optimize
+
+
 mpl.rc('figure', figsize=(20, 20))
 mpl.rc('image', cmap='gray', interpolation='none')
 
@@ -16,10 +20,16 @@ class Spot_Analysis:
         # Loading the data and starting the preprocessing
         #################################
         self.filename = filename
-        self.img = pims.TiffStack(filename)
+        if ".mat" in self.filename:
+            self.img, self.meta = self.MatLabParser(self.filename)
+            self.img = self.img.T
+        elif ".tif" in self.filename or ".tiff" in self.filename:
+            self.img = pims.TiffStack(filename)
+            self.meta = None
         self.time_pool, self.binned = self.Pool_Time(self.img)
         self.max_signal = self.time_pool.max()
         print "Loaded: ", filename
+        self.GMM = GaussianMixture()
         #################################
 
         #################################
@@ -29,25 +39,28 @@ class Spot_Analysis:
         self.mid = len(self.time_pool) / 2  # Define Middle pixel column
         # Defines the X pixel to use for speed analysis
         self.pix_col = range(self.mid - 1, self.mid + 2)
-        self.timeinterval = 2 					# Time between Frames in second
+        self.timeinterval = 2                   # Time between Frames in second
         # Speed Threshold, if an object moves faster than this, it is excluded
         # !
         self.speed_threshold = 40
-        # Defined how far appart can peak be (in second)
+        # Defined how far apart can peak be (in second)
         self.timethreshold = 4 * self.timeinterval * (1 / self.deltax)
         # Allowed variance in second for a peak to be called true when found in
         # vertical axis and checked VS time
         self.Time_Error = 6 / self.timeinterval
         self.diameter = 850  # Diameter of the bacteria in nm
         # Size in nm of the pixel (here CMOS camera with 100x objective = 65nm)
-        self.pix_size = 65
+        self.pix_size = 65.0
         # Minimum signal intensity to be called a peak (the signal is
         # normalized and goes from 0-1 should be set to mean(noise) +
         # 2std(noise) or learned )
-        self.y_threshold = 0.05
-        # Thershold value to detect the peaks > How close to zero does the
+        self.y_threshold = 0.01
+        # Threshold value to detect the peaks > How close to zero does the
         # first derivative need to be to be considered a peak
         self.dy_threshold = 0.001
+        # Value to calculate the real length
+        self.bact_lenght = len(self.time_pool[0].T)
+        self.bact_lenght_nm = self.bact_lenght * self.pix_size
         #################################
 
         #################################
@@ -56,8 +69,54 @@ class Spot_Analysis:
         self.all_v = []
         self.All_hit = []
         self.All_time = {}
+        self.All_Sigmas = []
+        self.All_Intensity = []
         self.Real_hit = []
         #################################
+
+    def MatLabParser(self, filepath):
+        mat = spio.loadmat(filepath)
+        im = mat['im'].T
+        labels = [('num_frames', 'O'),
+                  ('sec_per_frame', 'O'),
+                  ('exposure', 'O'),
+                  ('time_step', 'O'),
+                  ('diff_coeff', 'O'),
+                  ('u_convection', 'O'),
+                  ('um_per_px', 'O'),
+                  ('sim_box_size_um', 'O'),
+                  ('box_size_px', 'O'),
+                  ('brightness', 'O'),
+                  ('signal_background', 'O'),
+                  ('num_particle', 'O'),
+                  ('BD_type', 'O'),
+                  ('n_dims', 'O'),
+                  ('bound_condi', 'O'),
+                  ('drift', 'O'),
+                  ('psf_type', 'O'),
+                  ('psf_sigma_um', 'O'),
+                  ('renderer', 'O'),
+                  ('offset', 'O'),
+                  ('readout_noise', 'O'),
+                  ('EMgain', 'O'),
+                  ('ADCgain', 'O'),
+                  ('finer_grid', 'O'),
+                  ('Pe', 'O'),
+                  ('num_particle_1', 'O'),
+                  ('num_particle_2', 'O'),
+                  ('u_convection_1', 'O'),
+                  ('u_convection_2', 'O'),
+                  ('density', 'O'),
+                  ('bonds_per_atom', 'O'),
+                  ('spring_const', 'O'),
+                  ('topo', 'O'),
+                  ('make_gradient', 'O'),
+                  ('ic', 'O')]
+        metadata = mat['o'][0][0]
+        meta = {}
+        for i in range(len(metadata)):
+            meta[labels[i][0]] = metadata[i]
+        return im, meta
 
     def bin_img(self, img, Sum=True, width=1, height=1):
         "Bin a 2D picture with binning of size Width and height. If Sum==True, then sums to pixels, otherwise, average them"
@@ -135,9 +194,14 @@ class Spot_Analysis:
             Y = Y - Y.min()
         return Y
 
-    def Peak_detect(self, Y, line=0, y_threshold=None, dy_threshold=None):
+    def Peak_detect(self, Y, y_threshold=None, dy_threshold=None, point_spacing=60, smoothing_sigma=3):
+        """Y is the signal to be processed.
+        y_threshold defines the minimum signal amount to be a peak (filter out noise)
+        dy_threshold defines the bounds in witch the derivative needs to be to call a peak
+        point_spacing defines the minimum spacing between two peak too filter out multiple calls of the same peak
+        smoothing_sigma defines the spread of the gaussian smoothing to preprocess the signal"""
         # Process Signal
-        Y = self.Signal_Process(Y)
+        Y = self.Signal_Process(Y, Gaussian_sigma=smoothing_sigma)
         if not y_threshold:
             y_threshold = self.y_threshold
         if not dy_threshold:
@@ -161,14 +225,15 @@ class Spot_Analysis:
         # Find the roots, dy == 0 and ddy <= 0
         roots = []
         for i in range(len(dy)):
-            if -dy_threshold < dy[i] and dy[i] < dy_threshold and y[i] > y_threshold and ddy[i] <= 0:
+            if (-dy_threshold < dy[i] < dy_threshold) and y[i] > y_threshold and ddy[i] <= 0:
+                # print y[i]
                 roots.append(i)
 
         # Filter out the points that are next to each other
         roots2 = []
         for i in range(len(roots)):
             if i < len(roots) - 1:
-                if not (roots[i + 1] - roots[i]) < 60:
+                if not (roots[i + 1] - roots[i]) < point_spacing:
                     roots2.append(roots[i])
             else:
                 roots2.append(roots[i])
@@ -192,7 +257,7 @@ class Spot_Analysis:
                             roots_ok.append((r2, 'k'))
                         t = np.mean(
                             (abs(xs[r] - xs[r0]), abs(xs[r] - xs[r2]), abs(xs[r0] - xs[r2]) / 2))
-                        v = 65.0 / t
+                        v = self.pix_size / t
                         if v < self.speed_threshold:
                             self.all_v.append(v)
                         hitlist.append(int(round(xs[r], 0)))
@@ -200,8 +265,6 @@ class Spot_Analysis:
 
     def Main(self, makeplot=False):
         time_hit = []
-        self.bact_lenght = len(self.time_pool[0].T)
-        self.bact_lenght_nm = self.bact_lenght * self.pix_size
         print "Bacteria Lenght:", len(self.time_pool[0].T)
         ddys = {}
         for line in range(len(self.time_pool[0].T)):
@@ -213,6 +276,17 @@ class Spot_Analysis:
             for tp in self.pix_col:
                 Y = self.time_pool[tp].T[line]
                 roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
+                print 'roots_1', len(roots)
+                rr = np.array([xs[i] for i in roots]) / 2
+                F = self.GMM.BackFit(X, Y, rr)
+                BIC = self.GMM.BIC(X, Y, F, Lambda=4)
+                print 'BIC', BIC
+                model = F[np.argmin(BIC)]
+                roots, sigma, amplitude = np.reshape(model['x'], (len(model['x']) / 3, 3)).T
+                roots = np.searchsorted(xs, roots)
+                print 'roots_2', len(roots)
+                [self.All_Sigmas.append(i) for i in sigma]
+                [self.All_Intensity.append(i) for i in amplitude]
                 if self.pix_col.index(tp) == 1:
                     ddys[line] = ddy
                 roots_all.append(roots)
@@ -222,7 +296,9 @@ class Spot_Analysis:
                     plt.plot(xs, dy, 'orange')
                     plt.plot(xs, ddy, 'c')
                     plt.plot(xs, [0] * len(xs), 'y')
+            print 'roots_all', len(roots_all), roots_all
             roots_ok, hitlist = self.Filter_Neighbor_Hit(roots_all, xs)
+            print 'roots_ok', len(roots_ok), roots_ok
             self.All_hit.append(np.unique(hitlist) / 2)
             # Plot vertical line on the dectected peaks
             for i in roots_ok:
@@ -249,6 +325,14 @@ class Spot_Analysis:
             Y = self.Signal_Process(
                 self.time_pool[self.mid][time], Gaussian=False)
             roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
+            rr = np.array([xs[i] for i in roots]) / 2
+            F = self.GMM.BackFit(X, Y, rr)
+            BIC = self.GMM.BIC(X, Y, F, Lambda=4)
+            model = F[np.argmin(BIC)]
+            roots, sigma, amplitude = np.reshape(model['x'], (len(model['x']) / 3, 3)).T
+            roots = np.searchsorted(xs, roots)
+            [self.All_Sigmas.append(i) for i in sigma]
+            [self.All_Intensity.append(i) for i in amplitude]
             self.All_time[time] = [
                 int(round(self.find_nearest(X, xs[i]), 0)) for i in roots]
             # Plot vertical line on the dectected peaks
@@ -295,7 +379,8 @@ class Spot_Analysis:
                 else:
                     Tn[times[i]] = [lines[i]]
             T = np.unique(times)
-            res = np.zeros(T.max())
+            res = np.zeros(len(T))
+            print T, res
 
             for t in range(len(T)):
                 c = 0
@@ -342,3 +427,139 @@ class Spot_Analysis:
                     c = '0' + c
                 fig.savefig(self.filename + '_processed_' + c + '.png')
                 fig.clf()
+
+
+class GaussianMixture:
+
+    def multinomial_normal(self, x, params):
+        par = np.reshape(params, (len(params) / 3, 3))
+        # print x, params, par
+        n = len(par)
+        curve = np.zeros(len(x))
+        # print curve
+        for i in range(n):
+            mu, sigma, k = par[i]
+            curve += k * scipy.stats.norm.pdf(x, loc=mu, scale=sigma)
+        return curve
+
+    def residuals(self, coeffs, y, x):
+        # print coeffs
+        model = self.multinomial_normal(x, coeffs)
+        # print model
+        return y - model
+
+    def Objective(self, coeffs, y, x):
+        # print coeffs
+        residuals = self.residuals(coeffs, y, x)
+        # print model
+        return ((residuals) ** 2).sum()
+
+    def Fit(self, X, Y, min_component=1, max_component=10):
+        optimized = []
+        sigma0 = 3
+        k0 = 1
+        for n in range(min_component, max_component):
+            params = []
+            bounds = []
+            mus = np.linspace(min(X), max(X), n)
+            for i in range(n):
+                params.append(mus[i])
+                bounds.append([0, None])
+                params.append(sigma0)
+                bounds.append([0, None])
+                params.append(k0)
+                bounds.append([0, None])
+            print len(params), len(bounds)
+            print "Starting parameters"
+            print params
+            # optimized.append(scipy.optimize.leastsq(self.residuals, params, args=(Y, X)))
+            optimized.append(scipy.optimize.minimize(self.Objective, params, args=(Y, X), method="SLSQP", bounds=bounds))
+            print "Learned parameters"
+            print optimized[-1]
+        return optimized
+
+    def BackFit(self, X, Y, peaks, min_component=1):
+        "Takes peaks as starting points and reduce the number of parameters, compute AIC and BIC to extract the best model"
+        optimized = []
+        sigma0 = 3
+        k0 = 1
+        # n = len(peaks)
+        mus = peaks
+        drop = []
+        # old_bic = 10000000
+        while len(drop) - len(mus) < 1:
+            params = []
+            bounds = []
+            for i in range(len(mus)):
+                if i not in drop:
+                    params.append(mus[i])
+                    bounds.append([0, None])
+                    params.append(sigma0)
+                    bounds.append([0, None])
+                    params.append(k0)
+                    bounds.append([0, None])
+            # print len(params), len(bounds)
+            # print "Starting parameters"
+            # print params
+            # optimized.append(scipy.optimize.leastsq(self.residuals, params, args=(Y, X)))
+            if len(params) > 0:
+                optimized.append(scipy.optimize.minimize(self.Objective, params, args=(Y, X), method="SLSQP", bounds=bounds, options={'maxiter': 500}))
+            else:
+                optimized.append({'x': [np.mean(Y), 1000, np.mean(Y)], 'message': 'No peak !'})
+            # bic = self.__BIC(X, Y, optimized[-1].x, Lambda=4)
+            # if bic < old_bic:
+            #     old_bic = bic
+            # elif bic == old_bic:
+            #     break
+            learned = np.reshape(optimized[-1]['x'], (len(optimized[-1]['x']) / 3, 3)).T
+            drop.append(np.argmin(learned[2]))
+            # print "Learned parameters"
+            # print optimized[-1]['message']
+        return optimized
+
+    def Plot(self, X, Y, params):
+        fig = plt.figure()
+        plt.plot(X, Y)
+        for p in params:
+            plt.plot(X, self.multinomial_normal(X, p[0]))
+        plt.show()
+
+    def Plot2(self, X, Y, P):
+        fig = plt.figure()
+        plt.plot(X, Y)
+        plt.plot(X, self.multinomial_normal(X, P))
+        par = np.reshape(P, (len(P) / 3, 3))
+        for i in range(len(par)):
+            mu, sigma, k = par[i]
+            curve = k * scipy.stats.norm.pdf(X, loc=mu, scale=sigma)
+            plt.plot(X, curve)
+        plt.show()
+
+    def __BIC(self, X, Y, P, Lambda=1):
+        RSS = (self.residuals(P, Y, X) ** 2).sum()
+        n = len(X)
+        k = len(P)
+        BIC = n * np.log(RSS) + Lambda * k * np.log(n)
+        return BIC
+
+    def BIC(self, X, Y, models, Lambda=1):
+        res = []
+        for P in models:
+            # params = np.reshape(P[0], (len(P[0]) / 3, 3))
+            RSS = (self.residuals(P['x'], Y, X) ** 2).sum()
+            n = len(X)
+            k = len(P['x'])
+            BIC = n * np.log(RSS) + Lambda * k * np.log(n)
+            res.append(BIC)
+        return res
+
+    def AIC(self, X, Y, models, Lambda=1):
+        res = []
+        for P in models:
+            # params = np.reshape(P[0], (len(P[0]) / 3, 3))
+            RSS = (self.residuals(P['x'], Y, X) ** 2).sum()
+            n = len(X)
+            k = len(P['x'])
+            AIC = Lambda * 2 * k + n * np.log(RSS / n)
+            res.append(AIC)
+        return res

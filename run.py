@@ -10,6 +10,7 @@ if len(sys.argv) < 3:
     print """USAGE: run.py PATH_TO_IMAGE_FILES TXT_IMAGE_FILE_LIST
     to run the example:
     python run.py example/images list.txt"""
+    sys.exit()
 
 path = os.path.join(os.getcwd(), sys.argv[1])
 filelist = sys.argv[2]
