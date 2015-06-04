@@ -22,7 +22,10 @@ class Spot_Analysis:
         self.filename = filename
         if ".mat" in self.filename:
             self.img, self.meta = self.MatLabParser(self.filename)
-            self.img = self.img
+            tmp = []
+            for i in range(len(self.img)):
+                tmp.append(self.img[i].T)
+            self.img = np.array(tmp)
         elif ".tif" in self.filename or ".tiff" in self.filename:
             self.img = pims.TiffStack(filename)
             self.meta = None
