@@ -1,5 +1,4 @@
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+
 import pims
 import numpy as np
 from scipy import ndimage
@@ -10,8 +9,15 @@ import fit
 import copy
 import time as libtime
 
-mpl.rc('figure', figsize=(20, 20))
-mpl.rc('image', cmap='gray', interpolation='none')
+try:
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    mpl.rc('figure', figsize=(20, 20))
+    mpl.rc('image', cmap='gray', interpolation='none')
+    Matplot = True
+except:
+    "Matplotlib cannot be loaded"
+    Matplot = False
 
 
 class Spot_Analysis:
@@ -29,6 +35,9 @@ class Spot_Analysis:
             self.img = np.array(tmp)
         elif ".tif" in self.filename or ".tiff" in self.filename:
             self.img = pims.TiffStack(filename)
+            self.meta = None
+        elif ".npy" in self.filename:
+            self.img = np.load(filename)
             self.meta = None
         self.time_pool, self.binned = self.Pool_Time(self.img, Bin=binning)
         self.max_signal = self.time_pool.max()
@@ -307,6 +316,7 @@ class Spot_Analysis:
         return roots, sigma, amplitude, spread, model
 
     def Main(self, makeplot=False):
+        global Matplot
         t0 = libtime.time()
         time_hit = []
         color = {self.pix_col[0]: 'b', self.pix_col[1]: 'g', self.pix_col[2]: 'r'}
@@ -320,7 +330,7 @@ class Spot_Analysis:
             # intensity_all = []
             # spread_all = []
 
-            if makeplot:
+            if makeplot and Matplot:
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
                 ax.set_ylim(ymax=1)
@@ -354,11 +364,11 @@ class Spot_Analysis:
                     if self.pix_col.index(tp) == 1:
                         ddys[line] = ddy
 
-                    if makeplot:
+                    if makeplot and Matplot:
                         self.GMM.Plot(X, Y, model['x'], fusion=self.Flat_Top, ax=ax, color=color[tp])
                 else:
                     roots = []
-                if makeplot:
+                if makeplot and Matplot:
                     ax.plot(X, Y, label='pix%s' % tp, color=color[tp])
                     # ax.plot(xs, y, label='pix%s' % tp, color=color[tp])
                     # ax.plot(xs, dy, 'orange')
@@ -373,12 +383,12 @@ class Spot_Analysis:
             self.All_hit.append(np.unique(hitlist))
             # Plot vertical line on the dectected peaks
             for i in roots_ok:
-                if makeplot:
+                if makeplot and Matplot:
                     plt.plot((xs[i[0]], xs[i[0]]), (0, 1), i[1])
                 if i[1] == 'g' or i[1] == 'k':
                     time_hit.append(self.find_nearest(X, xs[i[0]]))
 
-            if makeplot:
+            if makeplot and Matplot:
                 plt.legend()
                 fig.savefig(self.filename.split('.')[0] + '_time_peak_detect' + str(line) + '.png')
                 fig.clf()
@@ -405,7 +415,7 @@ class Spot_Analysis:
             self.All_time[time] = [int(round((self.find_nearest(X, xs[i])) - 1, 0)) for i in roots]
 
             # Plot vertical line on the dectected peaks
-            if makeplot:
+            if makeplot and Matplot:
                 fig = plt.figure()
                 plt.plot(X, Y)
                 plt.plot(xs, y)
@@ -472,10 +482,10 @@ class Spot_Analysis:
         print "Gaussian width:"
         # print "Mean:", (np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma))))), "std:", (np.sqrt(np.abs(np.std(1.0 / np.array(self.gauss_sigma)))))
         print "Putative filament Lenght:"
-        print (np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma)))) * self.speed) - 240
+        print(np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma)))) * self.speed) - 240
         print "Time Elapsed for the bacteria in second: ", libtime.time() - t0
 
-        if makeplot:
+        if makeplot and Matplot:
             # fig = plt.figure()
             # plt.plot(range(len(windowed)), windowed)
             # plt.title('Number of MReB throught the sliding window, Mean=%s, Std=%s' % (
