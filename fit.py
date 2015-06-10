@@ -1,8 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import scipy.stats
 import scipy.optimize
-
+try:
+    import matplotlib.pyplot as plt
+except:
+    pass
 # S = SpotAnaliser.Spot_Analysis('data/3-GFP-MreB-488nm-10.tif')
 # Y = S.time_pool[2][1]
 # Y1 = S.Signal_Process(Y)
