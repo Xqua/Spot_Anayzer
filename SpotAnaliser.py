@@ -326,9 +326,9 @@ class Spot_Analysis:
         for line in range(len(self.time_pool[0].T)):
             print "line is :", line
             roots_all = []
-            # sigma_all = []
-            # intensity_all = []
-            # spread_all = []
+            sigma_all = []
+            intensity_all = []
+            spread_all = []
 
             if makeplot and Matplot:
                 fig = plt.figure()
@@ -358,9 +358,9 @@ class Spot_Analysis:
                 if len(roots_start) > 0:
                     roots, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_start, False)
                     print 'roots_2', len(roots)
-                    [self.All_Sigmas.append(i) for i in sigma]
-                    [self.All_Intensity.append(i) for i in amplitude]
-                    [self.All_Spread.append(i) for i in spread]
+                    # [self.All_Sigmas.append(i) for i in sigma]
+                    # [self.All_Intensity.append(i) for i in amplitude]
+                    # [self.All_Spread.append(i) for i in spread]
                     if self.pix_col.index(tp) == 1:
                         ddys[line] = ddy
 
@@ -368,6 +368,9 @@ class Spot_Analysis:
                         self.GMM.Plot(X, Y, model['x'], fusion=self.Flat_Top, ax=ax, color=color[tp])
                 else:
                     roots = []
+                    sigma = []
+                    amplitude = []
+                    spread = []
                 if makeplot and Matplot:
                     ax.plot(X, Y, label='pix%s' % tp, color=color[tp])
                     # ax.plot(xs, y, label='pix%s' % tp, color=color[tp])
@@ -375,6 +378,9 @@ class Spot_Analysis:
                     # ax.plot(xs, ddy, 'c')
                     # ax.plot(xs, [0] * len(xs), 'y')
                 roots_all.append(roots)
+                sigma_all.append(sigma)
+                amplitude_all.append(amplitude)
+                spread_all.append(spread)
 
             print 'roots_all', len(roots_all)
             roots_ok, hitlist = self.Filter_Neighbor_Hit(roots_all, xs)
