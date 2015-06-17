@@ -30,7 +30,8 @@ class Spot_Analysis:
         if ".mat" in self.filename:
             self.img, self.meta = self.MatLabParser(self.filename)
             tmp = []
-            for i in range(100):
+            for i in range(300):
+                # if i % 3 == 0:
                 tmp.append(self.img[i].T)
             self.img = np.array(tmp)
         elif ".tif" in self.filename or ".tiff" in self.filename:
@@ -479,7 +480,7 @@ class Spot_Analysis:
                     self.Real_hit.append((line + 1, t))
                     # self.gauss_sigma.append(ddys[line + 1][n])
         if self.Real_hit:
-            totaltime = len(self.time_pool[0].T[0])
+            # totaltime = len(self.time_pool[0].T[0])
             Tn = {}
             lines, times = np.array(self.Real_hit)[:, 0], np.array(self.Real_hit)[:, 1]
             for i in range(len(times)):
