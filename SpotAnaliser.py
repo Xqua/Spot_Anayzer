@@ -30,7 +30,7 @@ class Spot_Analysis:
         if ".mat" in self.filename:
             self.img, self.meta = self.MatLabParser(self.filename)
             tmp = []
-            for i in range(300):
+            for i in range(100):
                 tmp.append(self.img[i].T)
             self.img = np.array(tmp)
         elif ".tif" in self.filename or ".tiff" in self.filename:
@@ -296,13 +296,39 @@ class Spot_Analysis:
                         hitlist.append(int(round(xs[r], 0)))
         return roots_ok, hitlist
 
+    def Filter_Neighbor_Hit_gauss(self, roots_all, sigma_all, amplitude_all, spread_all, xs):
+        hitlist = []
+        roots_ok = []
+        for r in range(len(roots_all[1])):
+            for r0 in range(len(roots_all[0])):
+                for r2 in range(len(roots_all[2])):
+                    if abs(roots_all[1][r] - roots_all[2][r2]) < self.timethreshold and abs(roots_all[1][r] - roots_all[0][r0]) < self.timethreshold and abs(roots_all[2][r2] - roots_all[0][r0]) < 2 * self.timethreshold:
+                        if roots_all[0][r0] < roots_all[1][r] < roots_all[2][r2] or roots_all[2][r2] < roots_all[1][r] < roots_all[0][r0]:
+                            roots_ok.append((roots_all[0][r0], 'b'))
+                            roots_ok.append((roots_all[1][r], 'g'))
+                            roots_ok.append((roots_all[2][r2], 'r'))
+                        else:
+                            roots_ok.append((roots_all[0][r0], 'k'))
+                            roots_ok.append((roots_all[1][r], 'k'))
+                            roots_ok.append((roots_all[2][r2], 'k'))
+                        t = np.mean((abs(xs[r] - xs[roots_all[0][r0]]), abs(xs[roots_all[1][r]] - xs[roots_all[2][r2]]), abs(xs[roots_all[0][r0]] - xs[roots_all[2][r2]]) / 2))
+                        v = self.pix_size / (t * self.timeinterval)
+                        if v < self.speed_threshold:
+                            self.all_v.append(v)
+                        hitlist.append(int(round(xs[roots_all[1][r]], 0)))
+                        self.All_Sigmas.append(np.mean([sigma_all[1][r], sigma_all[0][r0], sigma_all[2][r2]]))
+                        self.All_Intensity.append(np.mean([amplitude_all[1][r], amplitude_all[0][r0], amplitude_all[2][r2]]))
+                        self.All_Spread.append(np.mean([spread_all[1][r], spread_all[0][r0], spread_all[2][r2]]))
+        return roots_ok, hitlist
+
     def Fit(self, X, xs, Y, roots, backfit):
         rr = np.array([xs[i] for i in roots])
         F = self.GMM.BackFit(X, Y, rr, fusion=self.Flat_Top, backfit=backfit)
         BIC = self.GMM.BIC(X, Y, [[i.x, 0] for i in F], fusion=self.Flat_Top, Lambda=self.BIC_Lambda)
-        b_i, b = np.argmin(BIC), BIC[np.argmin(BIC)]
-        print 'BICs : ', BIC
-        print "Best BIC: ", b
+        b_i = np.argmin(BIC)
+        # b_i, b = np.argmin(BIC), BIC[np.argmin(BIC)]
+        # print 'BICs : ', BIC
+        # print "Best BIC: ", b
         model = F[b_i]
         if self.Flat_Top:
             roots, sigma, amplitude, spread = np.reshape(copy.copy(model['x']), (len(model['x']) / 4, 4)).T
@@ -320,14 +346,15 @@ class Spot_Analysis:
         t0 = libtime.time()
         time_hit = []
         color = {self.pix_col[0]: 'b', self.pix_col[1]: 'g', self.pix_col[2]: 'r'}
-        print "Bacteria Lenght:", len(self.time_pool[0].T)
+        print "Bacteria Lenght in pixel:", len(self.time_pool[0].T)
         ddys = {}
 
         for line in range(len(self.time_pool[0].T)):
+            # for line in range(len(self.time_pool[0].T))[:4]:
             print "line is :", line
             roots_all = []
             sigma_all = []
-            intensity_all = []
+            amplitude_all = []
             spread_all = []
 
             if makeplot and Matplot:
@@ -350,14 +377,14 @@ class Spot_Analysis:
                 roots_start, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_max, True)
             else:
                 roots_start = []
-            print "Root Bootsart:", len(roots_start)
+            # print "Root Bootsart:", len(roots_start)
             for tp in self.pix_col:
                 Y = self.time_pool[tp].T[line]
                 roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
                 # print 'roots_1', len(roots)
                 if len(roots_start) > 0:
                     roots, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_start, False)
-                    print 'roots_2', len(roots)
+                    # print 'roots_2', len(roots)
                     # [self.All_Sigmas.append(i) for i in sigma]
                     # [self.All_Intensity.append(i) for i in amplitude]
                     # [self.All_Spread.append(i) for i in spread]
@@ -382,10 +409,10 @@ class Spot_Analysis:
                 amplitude_all.append(amplitude)
                 spread_all.append(spread)
 
-            print 'roots_all', len(roots_all)
-            roots_ok, hitlist = self.Filter_Neighbor_Hit(roots_all, xs)
-            print "hitlist: ", hitlist
-            print 'roots_ok', len(roots_ok)
+            # print 'roots_all', len(roots_all)
+            roots_ok, hitlist = self.Filter_Neighbor_Hit_gauss(roots_all, sigma_all, amplitude_all, spread_all, xs)
+            # print "hitlist: ", hitlist
+            # print 'roots_ok', len(roots_ok)
             self.All_hit.append(np.unique(hitlist))
             # Plot vertical line on the dectected peaks
             for i in roots_ok:
@@ -452,6 +479,7 @@ class Spot_Analysis:
                     self.Real_hit.append((line + 1, t))
                     # self.gauss_sigma.append(ddys[line + 1][n])
         if self.Real_hit:
+            totaltime = len(self.time_pool[0].T[0])
             Tn = {}
             lines, times = np.array(self.Real_hit)[:, 0], np.array(self.Real_hit)[:, 1]
             for i in range(len(times)):
@@ -461,6 +489,8 @@ class Spot_Analysis:
                     Tn[times[i]] = [lines[i]]
             T = np.unique(times)
             res = np.zeros(len(T))
+            # print times
+            # print T
 
             for t in range(len(T)):
                 c = 0
@@ -473,22 +503,24 @@ class Spot_Analysis:
                         c += 1
                 res[t] = c
 
-            print T, res
+            # print T, res
 
             # self.revolution_window = int((self.diameter * np.pi) / self.speed)
             # windowed = []
             # for i in range(len(res) - self.revolution_window):
             #     windowed.append(np.sum(res[i:i + self.revolution_window]))
-            self.meanMREB = np.sum(res)
-            self.stdMREB = 0
+            self.totalMREB = res.sum()
+            # self.meanMREB = np.mean(windowed)
+            # self.stdMREB = np.std(windowed)
         else:
-            self.meanMREB, self.stdMREB = 0, 0
-        print "Number of Events per revolution window:"
-        print "Mean:", self.meanMREB, "Std:", self.stdMREB
-        print "Gaussian width:"
+            # self.totalMREB, self.meanMREB, self.stdMREB = 0, 0, 0
+            self.totalMREB = 0
+        # print "Number of Events per revolution window:"
+        # print "Mean:", self.meanMREB, "Std:", self.stdMREB
+        # print "Gaussian width:"
         # print "Mean:", (np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma))))), "std:", (np.sqrt(np.abs(np.std(1.0 / np.array(self.gauss_sigma)))))
-        print "Putative filament Lenght:"
-        print(np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma)))) * self.speed) - 240
+        # print "Putative filament Lenght:"
+        # print(np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma)))) * self.speed) - 240
         print "Time Elapsed for the bacteria in second: ", libtime.time() - t0
 
         if makeplot and Matplot:
