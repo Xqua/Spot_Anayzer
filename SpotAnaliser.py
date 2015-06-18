@@ -108,45 +108,11 @@ class Spot_Analysis:
     def MatLabParser(self, filepath):
         mat = spio.loadmat(filepath)
         im = mat['im'].T
-        labels = [('num_frames', 'O'),
-                  ('sec_per_frame', 'O'),
-                  ('exposure', 'O'),
-                  ('time_step', 'O'),
-                  ('diff_coeff', 'O'),
-                  ('u_convection', 'O'),
-                  ('um_per_px', 'O'),
-                  ('sim_box_size_um', 'O'),
-                  ('box_size_px', 'O'),
-                  ('brightness', 'O'),
-                  ('signal_background', 'O'),
-                  ('num_particle', 'O'),
-                  ('BD_type', 'O'),
-                  ('n_dims', 'O'),
-                  ('bound_condi', 'O'),
-                  ('drift', 'O'),
-                  ('psf_type', 'O'),
-                  ('psf_sigma_um', 'O'),
-                  ('renderer', 'O'),
-                  ('offset', 'O'),
-                  ('readout_noise', 'O'),
-                  ('EMgain', 'O'),
-                  ('ADCgain', 'O'),
-                  ('finer_grid', 'O'),
-                  ('Pe', 'O'),
-                  ('num_particle_1', 'O'),
-                  ('num_particle_2', 'O'),
-                  ('u_convection_1', 'O'),
-                  ('u_convection_2', 'O'),
-                  ('density', 'O'),
-                  ('bonds_per_atom', 'O'),
-                  ('spring_const', 'O'),
-                  ('topo', 'O'),
-                  ('make_gradient', 'O'),
-                  ('ic', 'O')]
         metadata = mat['o'][0][0]
+        labels = mat['o'][0][0].dtype.names
         meta = {}
         for i in range(len(metadata)):
-            meta[labels[i][0]] = metadata[i]
+            meta[labels[i]] = metadata[i]
         return im, meta
 
     def bin_img(self, img, Sum=True, width=1, height=1):

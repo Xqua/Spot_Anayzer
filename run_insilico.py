@@ -7,19 +7,23 @@ import time
 import sys
 import numpy as np
 
-l = os.listdir('InSilico')
+# l = os.listdir('InSilico')
+insilicopath = "/n/Eggan_Lab3/Users/lblondel/"
+respath = '/n/home05/lblondel/'
+l = os.listdir(insilicopath)
+
 l = [i for i in l if '.mat' in i and '.png' not in i and '.mp4' not in i]
 
 done = []
 try:
-    f = open('res_test', 'r')
+    f = open(respath + 'res_test', 'r')
     lines = f.readlines()
     for line in lines:
         s = line.strip().split('\t')
         done.append(s[0])
     f.close()
 except:
-    f = open('res_test', 'w')
+    f = open(respath + 'res_test', 'w')
     legend = ['Path',
               'Real nb Mreb',
               'Total MREB',
@@ -36,20 +40,20 @@ path = [i for i in l if i not in done]
 
 
 def run(path):
-    n = int(path.split('_')[-1].split('.')[0])
+    n = int(path.split('_')[5])
     if n < 150:
-        S = SpotAnaliser.Spot_Analysis('InSilico/' + path)
+        S = SpotAnaliser.Spot_Analysis(insilicopath + path)
         S.Main()
         print "WRITTING !"
         if not os.path.isfile('lock'):
-            lock = open('lock', 'w')
+            lock = open(respath + 'lock', 'w')
             lock.write('1')
             lock.close()
         else:
-            while os.path.isfile('lock'):
+            while os.path.isfile(respath + 'lock'):
                 time.sleep(1)
 
-        f = open('res_test', 'a')
+        f = open(respath + 'res_test', 'a')
         result = [path,
                   str(S.meta['num_particle'][0][0]),
                   str(S.totalMREB),
@@ -65,7 +69,7 @@ def run(path):
         f.write(txt)
         f.close()
 
-        os.remove('lock')
+        os.remove(respath + 'lock')
         return txt
     return None
 
