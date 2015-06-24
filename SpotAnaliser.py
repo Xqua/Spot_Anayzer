@@ -30,9 +30,9 @@ class Spot_Analysis:
         if ".mat" in self.filename:
             self.img, self.meta = self.MatLabParser(self.filename)
             tmp = []
-            for i in range(300):
-                # if i % 3 == 0:
-                tmp.append(self.img[i].T)
+            for i in range(len(self.img)):
+                if i % 3 == 0:
+                    tmp.append(self.img[i].T)
             self.img = np.array(tmp)
         elif ".tif" in self.filename or ".tiff" in self.filename:
             self.img = pims.TiffStack(filename)
@@ -82,7 +82,7 @@ class Spot_Analysis:
         self.y_threshold = 0.06
         # Threshold value to detect the peaks > How close to zero does the
         # first derivative need to be to be considered a peak
-        self.dy_threshold = 0.01
+        self.dy_threshold = 0.00005
         # self.ddy_threshold = -0.1
         # Value to calculate the real length
         self.bact_lenght = len(self.time_pool[0].T)
@@ -191,7 +191,7 @@ class Spot_Analysis:
             Y = Y - Y.min()
         return Y
 
-    def Peak_detect(self, Y, y_threshold=None, dy_threshold=None, point_spacing=60, smoothing_sigma=3, process=True):
+    def Peak_detect(self, Y, y_threshold=None, dy_threshold=None, point_spacing=60, smoothing_sigma=5, process=True):
         """Y is the signal to be processed.
         y_threshold defines the minimum signal amount to be a peak (filter out noise)
         dy_threshold defines the bounds in witch the derivative needs to be to call a peak
@@ -211,7 +211,7 @@ class Spot_Analysis:
         xs = np.arange(0, len(Y), self.deltax)
 
         # Fit Spline model to the data
-        spl = UnivariateSpline(X, Y, k=5, s=0)
+        spl = UnivariateSpline(X, Y, k=5, s=0.01)
 
         # Take the Spline derivative to look for d(y) = 0 and dd(y) <= 0
         dspl = spl.derivative()  # first derivative
@@ -334,7 +334,7 @@ class Spot_Analysis:
                 Y = self.time_pool[tp].T[line]
                 roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
                 # print Y
-                # print roots
+                print roots
                 Ys.append(Y)
                 if len(roots) > len(roots_max):
                     roots_max = roots
@@ -344,14 +344,14 @@ class Spot_Analysis:
                 roots_start, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_max, True)
             else:
                 roots_start = []
-            # print "Root Bootsart:", len(roots_start)
+            print "Root Bootsart:", len(roots_start)
             for tp in self.pix_col:
                 Y = self.time_pool[tp].T[line]
                 roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
-                # print 'roots_1', len(roots)
+                print 'roots_1', len(roots)
                 if len(roots_start) > 0:
                     roots, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_start, False)
-                    # print 'roots_2', len(roots)
+                    print 'roots_2', len(roots)
                     # [self.All_Sigmas.append(i) for i in sigma]
                     # [self.All_Intensity.append(i) for i in amplitude]
                     # [self.All_Spread.append(i) for i in spread]
