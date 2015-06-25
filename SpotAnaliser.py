@@ -294,15 +294,14 @@ class Spot_Analysis:
                             roots_ok.append((r0, 'b'))
                             roots_ok.append((r, 'g'))
                             roots_ok.append((r2, 'r'))
+                            t = np.mean((abs(xs[r] - xs[r0]), abs(xs[r] - xs[r2]), abs(xs[r0] - xs[r2]) / 2))
+                            v = self.pix_size / t
+                            if v < self.speed_threshold:
+                                self.all_v.append(v)
                         else:
                             roots_ok.append((r0, 'k'))
                             roots_ok.append((r, 'k'))
                             roots_ok.append((r2, 'k'))
-                        t = np.mean(
-                            (abs(xs[r] - xs[r0]), abs(xs[r] - xs[r2]), abs(xs[r0] - xs[r2]) / 2))
-                        v = self.pix_size / t
-                        if v < self.speed_threshold:
-                            self.all_v.append(v)
                         hitlist.append(int(round(xs[r], 0)))
         return roots_ok, hitlist
 
