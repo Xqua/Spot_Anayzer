@@ -42,8 +42,27 @@ class Spot_Analysis:
             self.meta = None
         self.time_pool, self.binned = self.Pool_Time(self.img, Bin=binning)
         self.max_signal = self.time_pool.max()
+
         print "Loaded: ", filename
         self.GMM = fit.GaussianMixture()
+        #################################
+
+        #################################
+        # Preprocessing ...
+        #################################
+        # Minimum correlation of autocorrelation function to be called a period
+        self.corr_threshold = 0.7
+        tmp = []
+        for line in range(len(self.time_pool[0].T)):
+            Y = self.time_pool[len(self.time_pool) / 2].T[line]
+            tmp.append(self.Find_periodicity(Y))
+        tmp = np.array(tmp)
+        self.period = int(np.nanmean(tmp / (tmp / float(tmp.min()))))
+        # print tmp, tmp / (tmp / float(tmp.min()))
+        print "Periodicity is %s Frames" % self.period
+        self.img = self.img[:self.period]
+        self.time_pool, self.binned = self.Pool_Time(self.img, Bin=binning)
+        self.max_signal = self.time_pool.max()
         #################################
 
         #################################
@@ -69,7 +88,7 @@ class Spot_Analysis:
         # Speed Threshold, if an object moves faster than this, it is excluded
         # !
         self.speed_threshold = 40
-        # Allowed variance in second for a peak to be called true when found in
+        # Allowed variance in frames for a peak to be called true when found in
         # vertical axis and checked VS time
         # self.Time_Error = 10 / self.timeinterval
         self.Time_Error = 50
@@ -91,6 +110,7 @@ class Spot_Analysis:
         self.Flat_Top = True
         # Strenght of overfit correction, the higher the more the number of parameter is penalized (1 is an equivalent Fit Vs NB of Free param)
         self.BIC_Lambda = 4
+
         #################################
 
         #################################
@@ -104,6 +124,22 @@ class Spot_Analysis:
         self.All_Spread = []
         self.Real_hit = []
         #################################
+
+    def Find_periodicity(self, Y):
+        autocorr = self.AutoCorrelation(Y)
+        I = autocorr[0.1 * len(Y):len(Y) - 0.1 * len(Y)].argmax() + 0.1 * len(Y)
+        if autocorr[I] > self.corr_threshold:
+            return int(I)
+        else:
+            return np.nan
+
+    def AutoCorrelation(self, Y):
+        n = len(Y)
+        variance = Y.var()
+        Y = Y - Y.mean()
+        r = np.correlate(Y, Y, mode='full')[-n:]
+        result = r / (variance * (np.arange(n, 0, -1)))
+        return np.array(result)
 
     def MatLabParser(self, filepath):
         mat = spio.loadmat(filepath)

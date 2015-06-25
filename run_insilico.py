@@ -41,16 +41,19 @@ path = [i for i in l if i not in done]
 
 def run(path):
     n = int(path.split('_')[5])
+    print "Nb of filament is ", n
     if n < 150:
         S = SpotAnaliser.Spot_Analysis(insilicopath + path)
         S.Main()
         print "WRITTING !"
         if not os.path.isfile('lock'):
+            print "no Lock, Writing now !"
             lock = open(respath + 'lock', 'w')
             lock.write('1')
             lock.close()
         else:
             while os.path.isfile(respath + 'lock'):
+                print "lock on, waiting ..."
                 time.sleep(1)
 
         f = open(respath + 'res_test', 'a')
@@ -68,7 +71,7 @@ def run(path):
         # txt = path + '\t' + str(S.meta['num_particle'][0][0]) + '\t' + str(S.meanMREB) + '\n'
         f.write(txt)
         f.close()
-
+        print "result written removing lock ..."
         os.remove(respath + 'lock')
         return txt
     return None

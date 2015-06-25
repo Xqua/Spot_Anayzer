@@ -31,13 +31,13 @@ def loss_function(MreB, MreB_True):
         E += ((MreB[i] - MreB_True[i]) ** 2) / len(MreB)
     return E
 
-timeinterval = 2
+timeinterval = 1.0
 deltax = 0.1
 
-timethreshold_totest = np.arange(1, 5, 0.5) * timeinterval * (1 / deltax)
-timererror_totest = np.arange(1, 7) / timeinterval
-y_threshold_totest = np.arange(0, 0.4, 0.01)
-dy_threshold_totest = np.arange(0, 0.001, 0.0001)
+timethreshold_totest = np.arange(4, 8, 0.5) * timeinterval * (1 / deltax)
+timererror_totest = np.arange(40, 70, 10) / timeinterval
+y_threshold_totest = np.arange(0.01, 0.1, 0.01)
+dy_threshold_totest = np.arange(0, 0.0001, 0.00001)
 
 Error = np.zeros((len(timethreshold_totest), len(timererror_totest), len(
     y_threshold_totest), len(dy_threshold_totest)))

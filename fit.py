@@ -90,8 +90,8 @@ class GaussianMixture:
                     if fusion:
                         params.append(spread0)
                         bounds.append([0, 20])
-            # print Map
-            # print "Starting parameters", params
+            print Map
+            print "Starting parameters", params
             if not params:
                 break
             # optimized.append(scipy.optimize.leastsq(self.residuals, params, args=(Y, X)))
