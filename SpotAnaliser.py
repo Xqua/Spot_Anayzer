@@ -35,7 +35,7 @@ class Spot_Analysis:
                     tmp.append(self.img[i].T)
             self.img = np.array(tmp)
         elif ".tif" in self.filename or ".tiff" in self.filename:
-            self.img = pims.TiffStack(filename)
+            self.img = np.array(pims.TiffStack(filename))
             self.meta = None
         elif ".npy" in self.filename:
             self.img = np.load(filename)
@@ -56,9 +56,16 @@ class Spot_Analysis:
         for line in range(len(self.time_pool[0].T)):
             Y = self.time_pool[len(self.time_pool) / 2].T[line]
             tmp.append(self.Find_periodicity(Y))
+        print tmp
         tmp = np.array(tmp)
-        self.period = int(np.nanmean(tmp / (tmp / float(tmp.min()))))
-        # print tmp, tmp / (tmp / float(tmp.min()))
+        if np.nanstd(tmp / float(np.nanmin(tmp))) > 0.3:
+            self.period = int(np.nanmean(tmp / (tmp / float(np.nanmin(tmp)))))
+        else:
+            self.period = int(np.nanmean(tmp))
+        print tmp / (tmp / float(tmp.min()))
+        if self.period < 80:
+            self.period = len(self.img)
+            print "Period is too short keeping the whole movie"
         print "Periodicity is %s Frames" % self.period
         self.img = self.img[:self.period]
         self.time_pool, self.binned = self.Pool_Time(self.img, Bin=binning)
