@@ -51,18 +51,22 @@ class Spot_Analysis:
         # Preprocessing ...
         #################################
         # Minimum correlation of autocorrelation function to be called a period
+
         self.corr_threshold = 0.7
         tmp = []
         for line in range(len(self.time_pool[0].T)):
             Y = self.time_pool[len(self.time_pool) / 2].T[line]
             tmp.append(self.Find_periodicity(Y))
-        print tmp
+        # print tmp
         tmp = np.array(tmp)
-        if np.nanstd(tmp / float(np.nanmin(tmp))) > 0.3:
-            self.period = int(np.nanmean(tmp / (tmp / float(np.nanmin(tmp)))))
-        else:
-            self.period = int(np.nanmean(tmp))
-        print tmp / (tmp / float(tmp.min()))
+        try:
+            if np.nanstd(tmp / float(np.nanmin(tmp))) > 0.3:
+                self.period = int(np.nanmean(tmp / (tmp / float(np.nanmin(tmp)))))
+            else:
+                self.period = int(np.nanmean(tmp))
+        except:
+            self.period = 0
+        # print tmp / (tmp / float(tmp.min()))
         if self.period < 80:
             self.period = len(self.img)
             print "Period is too short keeping the whole movie"
