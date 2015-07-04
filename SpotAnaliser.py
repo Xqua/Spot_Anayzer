@@ -8,6 +8,7 @@ import scipy.io as spio
 import fit
 import copy
 import time as libtime
+import ConfigParser
 
 try:
     import matplotlib as mpl
@@ -22,7 +23,34 @@ except:
 
 class Spot_Analysis:
 
-    def __init__(self, filename, binning=False):
+    def __init__(self, filename, conffile='Config.cfg', binning=False):
+        #################################
+        # Loading the configuration file
+        #################################
+        Config = ConfigParser.ConfigParser()
+        Config.read(conffile)
+        section = 'Main'
+        ConfDict = {}
+        options = Config.options(section)
+        for option in options:
+            try:
+                ConfDict[option] = Config.get(section, option)
+                if ConfDict[option] == -1:
+                    print "skip: %s" % option
+                try:
+                    ConfDict[option] = int(ConfDict[option])
+                except:
+                    try:
+                        ConfDict[option] = float(ConfDict[option])
+                    except:
+                        if ConfDict[option] == 'True':
+                            ConfDict[option] = True
+                        elif ConfDict[option] == 'False':
+                            ConfDict[option] = False
+            except:
+                print("exception on %s!" % option)
+                ConfDict[option] = None
+
         #################################
         # Loading the data and starting the preprocessing
         #################################
@@ -57,7 +85,7 @@ class Spot_Analysis:
         for line in range(len(self.time_pool[0].T)):
             Y = self.time_pool[len(self.time_pool) / 2].T[line]
             tmp.append(self.Find_periodicity(Y))
-        # print tmp
+        # print tmpca
         tmp = np.array(tmp)
         try:
             if np.nanstd(tmp / float(np.nanmin(tmp))) > 0.3:
@@ -79,48 +107,47 @@ class Spot_Analysis:
         #################################
         # Definition of constants
         #################################
-        self.deltax = 0.005  # Defines the delta x step for derivation etc
+        self.deltax = ConfDict['deltax']  # Defines the delta x step for derivation etc
         self.mid = len(self.time_pool) / 2  # Define Middle pixel column
         # Defines the X pixel to use for speed analysis
         self.pix_col = range(self.mid - 1, self.mid + 2)
         # Size in nm of the pixel (here CMOS camera with 100x objective = 65nm)
-        self.pix_size = 65.0
+        self.pix_size = ConfDict['pix_size']
         # Time between Frames in second
-        self.timeinterval = 1
-        # Defined how far apart can peak be (in second)
-        self.timethreshold = 6 * self.timeinterval * (1 / self.deltax)  # Classic 1 second imaging
+        self.timeinterval = ConfDict['timeinterval']
 
         # If in silico data, grabs number from simulation logs.
         if self.meta:
             self.timeinterval = self.meta['sec_per_frame'][0][0]
             self.pix_size = self.meta['um_per_px'][0][0] * 1000
-            self.timethreshold = 60 * self.timeinterval * (1 / self.deltax)
 
+        # Defined how far apart can peak be (in second)
+        self.timethreshold = ConfDict['timethreshold'] * self.timeinterval * (1 / self.deltax)  # Classic 1 second imaging
         # Speed Threshold, if an object moves faster than this, it is excluded
         # !
-        self.speed_threshold = 40
+        self.speed_threshold = ConfDict['speed_threshold']
         # Allowed variance in frames for a peak to be called true when found in
         # vertical axis and checked VS time
         # self.Time_Error = 10 / self.timeinterval
-        self.Time_Error = 50
+        self.Time_Error = ConfDict['time_error']
 
-        self.diameter = 850  # Diameter of the bacteria in nm
+        self.diameter = ConfDict['diameter']  # Diameter of the bacteria in nm
 
         # Minimum signal intensity to be called a peak (the signal is
         # normalized and goes from 0-1 should be set to mean(noise) +
         # 2std(noise) or learned )
-        self.y_threshold = 0.06
+        self.y_threshold = ConfDict['y_threshold']
         # Threshold value to detect the peaks > How close to zero does the
         # first derivative need to be to be considered a peak
-        self.dy_threshold = 0.00005
+        self.dy_threshold = ConfDict['dy_threshold']
         # self.ddy_threshold = -0.1
         # Value to calculate the real length
         self.bact_lenght = len(self.time_pool[0].T)
         self.bact_lenght_nm = self.bact_lenght * self.pix_size
         # Which model to use, gaussian or flat top gaussian, if True, flat top, if False Gaussian
-        self.Flat_Top = True
+        self.Flat_Top = ConfDict['flat_top']
         # Strenght of overfit correction, the higher the more the number of parameter is penalized (1 is an equivalent Fit Vs NB of Free param)
-        self.BIC_Lambda = 4
+        self.BIC_Lambda = ConfDict['bic_lambda']
 
         #################################
 

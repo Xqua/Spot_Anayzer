@@ -4,6 +4,7 @@ import SpotAnaliser
 import sys
 import os
 import numpy as np
+import scipy.optimize
 
 if len(sys.argv) < 3:
     print """USAGE: train.py PATH_TO_IMAGE_FILES TXT_IMAGE_FILE_LIST
@@ -39,8 +40,7 @@ timererror_totest = np.arange(40, 70, 10) / timeinterval
 y_threshold_totest = np.arange(0.01, 0.1, 0.01)
 dy_threshold_totest = np.arange(0, 0.0001, 0.00001)
 
-Error = np.zeros((len(timethreshold_totest), len(timererror_totest), len(
-    y_threshold_totest), len(dy_threshold_totest)))
+Error = np.zeros((len(timethreshold_totest), len(timererror_totest), len(y_threshold_totest), len(dy_threshold_totest)))
 
 for i in range(len(timethreshold_totest)):
     for j in range(len(timererror_totest)):
