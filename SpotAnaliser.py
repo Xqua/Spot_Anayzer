@@ -407,7 +407,7 @@ class Spot_Analysis:
                 Y = self.time_pool[tp].T[line]
                 roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
                 # print Y
-                print roots
+                # print roots
                 Ys.append(Y)
                 if len(roots) > len(roots_max):
                     roots_max = roots
@@ -417,14 +417,14 @@ class Spot_Analysis:
                 roots_start, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_max, True)
             else:
                 roots_start = []
-            print "Root Bootsart:", len(roots_start)
+            # print "Root Bootsart:", len(roots_start)
             for tp in self.pix_col:
                 Y = self.time_pool[tp].T[line]
                 roots, X, xs, Y, y, dy, ddy = self.Peak_detect(Y)
-                print 'roots_1', len(roots)
+                # print 'roots_1', len(roots)
                 if len(roots_start) > 0:
                     roots, sigma, amplitude, spread, model = self.Fit(X, xs, Y, roots_start, False)
-                    print 'roots_2', len(roots)
+                    # print 'roots_2', len(roots)
                     # [self.All_Sigmas.append(i) for i in sigma]
                     # [self.All_Intensity.append(i) for i in amplitude]
                     # [self.All_Spread.append(i) for i in spread]
@@ -555,7 +555,7 @@ class Spot_Analysis:
         else:
             # self.totalMREB, self.meanMREB, self.stdMREB = 0, 0, 0
             self.totalMREB = 0
-        # print "Number of Events per revolution window:"
+        print "Number of Events per revolution window:", self.totalMREB
         # print "Mean:", self.meanMREB, "Std:", self.stdMREB
         # print "Gaussian width:"
         # print "Mean:", (np.sqrt(np.abs(np.mean(1.0 / np.array(self.gauss_sigma))))), "std:", (np.sqrt(np.abs(np.std(1.0 / np.array(self.gauss_sigma)))))

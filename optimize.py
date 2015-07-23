@@ -7,7 +7,7 @@ import scipy.optimize
 
 
 def Loss_Function(res, known):
-    return np.sum((res - known) ** 2)
+    return np.sum((np.array(res) - np.array(known)) ** 2)
 
 
 def Fit(params, path, known):
@@ -17,6 +17,7 @@ def Fit(params, path, known):
         opt.append([i, params])
     res = p.map(run, opt)
     L = Loss_Function(res, known)
+    print params, res, known, L
     return L
 
 
@@ -29,6 +30,7 @@ def run(parameters):
     S.speed_threshold = params[1]
     S.Time_Error = params[2]
     S.Main()
+    print S.totalMREB
     return S.totalMREB
 
 if __name__ == '__main__':
@@ -44,13 +46,14 @@ if __name__ == '__main__':
     #         "sim_MreB_brightness_6000_numfilaments_120_speed_0.02_flen_0.2.mat",
     #         "sim_MreB_brightness_1000_numfilaments_40_speed_0.02_flen_0.2.mat"]
     insilicopath = "./"
-    path = ["sim_MreB_brightness_4000_numfilaments_10_speed_0.01_flen_0.3.mat",
-            "sim_MreB_brightness_4000_numfilaments_10_speed_0.01_flen_0.3.mat"]
+    path = ["sim_MreB_brightness_4000_numfilaments_30_speed_0.03_flen_0.1.mat",
+            "sim_MreB_brightness_4000_numfilaments_30_speed_0.03_flen_0.1.mat"]
     known = []
     for p in path:
         known.append(int(p.split('_')[5]))
     paths = [insilicopath + p for p in path]
 
-    p0 = [60, 40, 50]
+    p0 = [6, 40, 50]
     bounds = [[0, 100], [0, 100], [0, 100]]
-    scipy.optimize.minimize(Fit, p0, args=(paths, known), method="SLSQP", bounds=bounds, options={'maxiter': 500})
+    model = scipy.optimize.minimize(Fit, p0, args=(paths, known), method="SLSQP", bounds=bounds, options={'maxiter': 500})
+    print model
